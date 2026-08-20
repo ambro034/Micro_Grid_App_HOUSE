@@ -2044,10 +2044,11 @@ let state = {
     upgradeRequired:false,
 
     /*
-     * Permanently discarded cards.
+     * Cards that have been sent to the landfill.
      *
-     * Cards placed here can never return to the active
-     * card supply and can never be played again.
+     * The landfill is a discard location/history only.
+     * Discarded cards are returned to the active neighborhood
+     * card supply and may be purchased again by other players.
      */
 
     landfill:[],
@@ -2405,13 +2406,55 @@ function createHouseCard(card) {
 
 
 /*
- * Permanently move one card from a player's house
- * to the landfill.
+ * Return a discarded card to the active neighborhood supply.
+ *
+ * The card remains recorded in the landfill history, but
+ * its corresponding deck quantity is restored so another
+ * player can purchase it again.
+ */
+
+function returnCardToBoard(
+    discarded,
+    cardType
+) {
+
+    if(!discarded) {
+
+        return;
+
+    }
+
+
+    const deck =
+        cardType === "goods"
+            ? goodsCards
+            : solarPanelCards;
+
+
+    const boardCard =
+        deck.find(
+            card =>
+                card.id === discarded.id
+        );
+
+
+    if(boardCard) {
+
+        boardCard.quantity += 1;
+
+    }
+
+}
+
+
+/*
+ * Move one card from a player's house to the landfill.
  *
  * The electricity effect is removed from the player's
  * active demand immediately.
  *
- * The card is NOT returned to its deck quantity.
+ * The discarded card is then returned to the active
+ * neighborhood card supply so another player can purchase it.
  */
 
 function discardHouseCard(
@@ -2475,6 +2518,17 @@ function discardHouseCard(
     });
 
 
+    /*
+     * Return the discarded card to the board so that it is
+     * immediately available for another player to purchase.
+     */
+
+    returnCardToBoard(
+        discarded,
+        cardType
+    );
+
+
     if(cardType === "goods") {
 
         p.goodsE -=
@@ -2497,9 +2551,9 @@ function discardHouseCard(
 
     appendLog(
 
-        `🗑️ ${p.name} discarded ${cardType === "goods" ? "Goods" : "Solar Panel"} Card ${discarded.id}. ` +
+        `🗑️ ${p.name} sent ${cardType === "goods" ? "Goods" : "Solar Panel"} Card ${discarded.id} to the landfill. ` +
 
-        `Card moved permanently to the landfill and is no longer part of neighborhood demand.`
+        `The card has been returned to the neighborhood board and is available for purchase again.`
 
     );
 
@@ -2625,11 +2679,12 @@ async function chooseHouseCardToDiscard(
 
             <div style="
                 margin-top:12px;
-                color:var(--danger);
+                color:var(--success);
                 font-size:0.85rem;">
 
-                🗑️ A discarded card is permanently removed
-                from the game and cannot be played again.
+                🗑️ The discarded card will return to the
+                neighborhood board and can be purchased again
+                by another player.
 
             </div>
 
@@ -4387,8 +4442,8 @@ async function buyCard(
 
                 <br><br>
 
-                ${selectedCard.id} will be moved permanently
-                to the landfill.
+                ${selectedCard.id} will be sent to the landfill
+                and returned to the neighborhood board.
 
                 <br><br>
 
@@ -4397,9 +4452,9 @@ async function buyCard(
                     font-size:0.85rem;">
 
                     The discarded card will no longer contribute
-                    to this player's electricity demand or the
-                    neighborhood's collective demand, and it
-                    cannot be played again.
+                    to this player's electricity demand, but it
+                    will become available for another player to
+                    purchase again.
 
                 </span>
 
@@ -4600,6 +4655,8 @@ async function buyCard(
          * IMPORTANT:
          * The discard occurs only now, after the player has
          * confirmed the purchase.
+         *
+         * The discarded card is returned to the board.
          */
 
         discardHouseCard(
